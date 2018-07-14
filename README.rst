@@ -69,6 +69,8 @@ it id added to the transaction queue (it is a mode for more performance where yo
 really slow) There are two more inserting methods, ``Summoner.insert_to_db_by_account_id`` and
 ``Summoner.insert_to_db_by_summoner_id`` both take the same arguments like the first one the only think which changes
 is the ``summoner_name`` is now the ``account_id`` or ``summoner_id``. All three methods return a Summoner object.
+The Summoner has the following variables ``str summoner.name``, ``int summoner.summoner_id``, ``int summoner.account_id``,
+``int summoner.profile_icon_id``, ``int summoner.revision_date`` and ``int summoner.summoner_level``.
 
 There are just two more methods for the ``Summoner`` class right now:
 
