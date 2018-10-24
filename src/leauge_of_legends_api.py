@@ -5,24 +5,6 @@ from Api.LeaugeOfLegendObjects import Summoner as ObSum, LeaugeRankedSolo5x5 as 
     XpDiffPerMinDeltas, CreepsPerMinDeltas, XpPerMinDeltas, DamageTakenDiffPerMinDeltas, DamageTakenPerMinDeltas,\
     Timeline, Team, Bans, Item as itemobj
 import time
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import scoped_session, sessionmaker
-
-Base = None
-engine = None
-
-
-def init_db(db_name='sqlite:///data.db'):
-    global engine, Base
-    Base = declarative_base()
-    session = scoped_session(sessionmaker())
-    engine = create_engine(db_name, echo=False)
-    session.remove()
-    session.configure(bind=engine, autoflush=False, expire_on_commit=False)
-
-
-init_db()
 
 
 class Summoner:
@@ -60,17 +42,19 @@ class Summoner:
         sumer = ObSum.find_by_name(summoner_name)
         if sumer is None:
             sumer = cls._handel(LeaugeSummoner(header).get_summoner_by_name(summoner_name), summoner_name)
-            if just_add:
-                sumer.add()
-            else:
-                sumer.insert_to_db()
-        else:
-            if update_summoner:
-                sumer = cls._update(sumer, header)
+            if sumer:
                 if just_add:
                     sumer.add()
                 else:
                     sumer.insert_to_db()
+        else:
+            if update_summoner:
+                sumer = cls._update(sumer, header)
+                if sumer:
+                    if just_add:
+                        sumer.add()
+                    else:
+                        sumer.insert_to_db()
         return sumer
 
     @classmethod
@@ -79,17 +63,19 @@ class Summoner:
         sumer = ObSum.find_by_account_id(account_id)
         if sumer is None:
             sumer = cls._handel(LeaugeSummoner(header).get_summoner_by_account_id(account_id), account_id)
-            if just_add:
-                sumer.add()
-            else:
-                sumer.insert_to_db()
-        else:
-            if update_summoner:
-                sumer = cls._update(sumer, header)
+            if sumer:
                 if just_add:
                     sumer.add()
                 else:
                     sumer.insert_to_db()
+        else:
+            if update_summoner:
+                sumer = cls._update(sumer, header)
+                if sumer:
+                    if just_add:
+                        sumer.add()
+                    else:
+                        sumer.insert_to_db()
         return sumer
 
     @classmethod
@@ -98,17 +84,19 @@ class Summoner:
         sumer = ObSum.find_by_summoner_id(summoner_id)
         if sumer is None:
             sumer = cls._handel(LeaugeSummoner(header).get_summoner_by_id(summoner_id), summoner_id)
-            if just_add:
-                sumer.add()
-            else:
-                sumer.insert_to_db()
-        else:
-            if update_summoner:
-                sumer = cls._update(sumer, header)
+            if sumer:
                 if just_add:
                     sumer.add()
                 else:
                     sumer.insert_to_db()
+        else:
+            if update_summoner:
+                sumer = cls._update(sumer, header)
+                if sumer:
+                    if just_add:
+                        sumer.add()
+                    else:
+                        sumer.insert_to_db()
         return sumer
 
     @classmethod
@@ -183,7 +171,7 @@ class LeaugeOfLegendLeauger:
             if 'status' in leaugers.keys():
                 print(leaugers)
                 return None
-        solo5x5 = RANKED_SOLO_5x5.find_by_player_or_team_id(summoner_id)
+        solo5x5 = RANKED_SOLO_5x5.find_by_summoner_id(summoner_id)
         if solo5x5 is None:
             solo5x5 = cls._create_leauge_for_db(leaugers,'RANKED_SOLO_5x5')
             if solo5x5 is not None:
@@ -200,7 +188,7 @@ class LeaugeOfLegendLeauger:
             else:
                 solo5x5.insert_to_db()
         
-        flexSR = RANKED_FLEX_SR.find_by_player_or_team_id(summoner_id)
+        flexSR = RANKED_FLEX_SR.find_by_summoner_id(summoner_id)
         if flexSR is None:
             flexSR = cls._create_leauge_for_db(leaugers, 'RANKED_FLEX_SR')
             if flexSR is not None:
@@ -217,7 +205,7 @@ class LeaugeOfLegendLeauger:
             else:
                 flexSR.insert_to_db()
 
-        TT3v3 = RANKED_FLEX_TT.find_by_player_or_team_id(summoner_id)
+        TT3v3 = RANKED_FLEX_TT.find_by_summoner_id(summoner_id)
         if TT3v3 is None:
             TT3v3 = cls._create_leauge_for_db(leaugers, 'RANKED_FLEX_TT')
             if TT3v3 is not None:
@@ -366,6 +354,10 @@ class Match:
                 if Matches.find_by_id(int(str(account_id)+ str(match['gameId']))):
                     return None
                 match['playerId'] = account_id
+                if "role" not in match.keys():
+                    match['role'] = ''
+                if "lane" not in match.keys():
+                    match['lane'] = ''
                 match = Matches(**match)
                 if just_add:
                     match.add()
@@ -479,15 +471,25 @@ class CompleteMatch:
 
     def _participantIdentities(gameId,participantIdentities):
         """Goes through all the participantIdenteties and creat a the obj and returns all a a Generator"""
+        ppireturn = []
         for raw_participant_identety in participantIdentities:
+            if 'player' not in raw_participant_identety.keys():
+                print('no player in participantsIdentety')
+                return None
             player = raw_participant_identety['player']
             player['participantId'] = raw_participant_identety['participantId']
             player['gameId'] = gameId
             if "summonerId" not in player.keys():
-                #print('No summonerId in response')
+                print('No summonerId in response')
                 return None
-            if not ParticipantIdentities.find_by_id(int(str(gameId) + str(player['participantId']))):
-                yield ParticipantIdentities(**player)
+            if "gameId" not in player.keys():
+                print('no gameID')
+                return None
+            if "participantId" not in player.keys():
+                print('no ID')
+                return None
+            #if not ParticipantIdentities.find_by_id(int(str(gameId) + str(player['participantId']))):
+            yield (ParticipantIdentities(**player))
 
 
     @classmethod
@@ -600,10 +602,13 @@ class CompleteMatch:
 
     @classmethod
     def _participants(cls, participants, gameId):
+        ppreturn = []
         for participant in participants:
             stats = participant.pop("stats")
             if stats is None:
                 #print("No stats")
+                return None
+            if "timeline" not in participant.keys():
                 return None
             timeline = participant.pop("timeline")
             if timeline is None:
@@ -739,36 +744,39 @@ class CompleteMatch:
             return None
         teams = response.pop('teams')
         if teams is None:
-            #print('No teams')
+            print('No teams')
             return None
         participants = response.pop('participants')
         if participants is None:
-            #print('No participans')
+            print('No participans')
             return None
         ppidenteties = response.pop("participantIdentities")
         if ppidenteties is None:
-            #print('No participansIdenteties')
+            print('No participansIdenteties')
             return None
         match = BigMatch(**response)
         gameId = match.game_id
-        for player in cls._participantIdentities(gameId, ppidenteties):
-            if player:
-                player.add()
+        #print(f'{len(participantIdenteties)}=={len(participants)}')
+        for participantsIdentity, participant in zip(cls._participantIdentities(gameId, ppidenteties), cls._participants(participants, gameId)):
+            if participantsIdentity and participant:
+                #print(f'{participantsIdentity.key_for_stats}=={participant.id}')
+                participantsIdentity.add()
+                participant.add()
             else:
-                #print("Something is missing by participantIdenteties")
+                print('Fail')
                 return None
         for team in cls._team(teams, gameId):
             if team:
                 team.add()
             else:
-                #print("something is missing by teams")
+                print("something is missing by teams")
                 return None
-        for participant in cls._participants(participants, gameId):
-            if participant:
-                participant.add()
-            else:
-                #print("something is missing by participants")
-                return None
+        #for participant in cls._participants(participants, gameId):
+        #    if participant:
+        #        participant.add()
+        #    else:
+        #        #print("something is missing by participants")
+        #        return None
         match.add()
         #match.commit()
         return match
@@ -803,17 +811,45 @@ class Item:
     def insert_all_to_db(cls, header):
         response = LeaugeStatics(header).get_all_items_static()
         items = response['data']
-        for _, item in items.items():
-            olditem = itemobj.find_by_id(item['id'])
+        for i, item in items.items():
+            olditem = itemobj.find_by_id(i)
             if olditem:
                 olditem.name = item['name']
                 if 'description' in item.keys():
                     olditem.description = item['description']
-                olditem.id = item['id']
+                olditem.id = i
                 if 'plaintext' in item.keys():
                     olditem.plaintext = item['plaintext']
                 olditem.insert_to_db()
             else:
+                del item['colloq']
+                del item['into']
+                del item['image']
+                del item['gold']
+                del item['tags']
+                del item['maps']
+                del item['stats']
+                if 'from' in item.keys():
+                    del item['from']
+                if 'depth' in item.keys():
+                    del item['depth']
+                if 'effect' in item.keys():
+                    del item['effect']
+                if 'hideFromAll' in item.keys():
+                    del item['hideFromAll']
+                if 'consumed' in item.keys():
+                    del item['consumed']
+                if 'stacks' in item.keys():
+                    del item['stacks']
+                if 'inStore' in item.keys():
+                    del item['inStore']
+                if 'consumeOnFull' in item.keys():
+                    del item['consumeOnFull']
+                if 'specialRecipe' in item.keys():
+                    del item['specialRecipe']
+                if 'requiredChampion' in item.keys():
+                    del item['requiredChampion']
+                item['id'] = i
                 item = itemobj(**item)
                 item.insert_to_db()
 

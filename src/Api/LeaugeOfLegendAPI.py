@@ -17,11 +17,9 @@ def _check_response_header(header):
 def _intern_send_request(url, APIKey, region):
     """Just the request"""
     global counter
-    if len(APIKey) == 1:
-        header = {"X-Riot-Token": str(APIKey[0])}
-    else:
-        header = {"X-Riot-Token": str(APIKey[counter])}
-        counter +=1
+    #print(APIKey[counter])
+    header = {"X-Riot-Token": str(APIKey[counter])}
+    counter +=1
     if counter >= len(APIKey):
         counter = 0
     try:
@@ -78,7 +76,7 @@ class LeaugeChampions:
 
     def get_all_champions(self):
         """All Champions"""
-        return  _send_request('/lol/platform/v3/champions', self.APIKey)
+        return _send_request('/lol/platform/v3/champions?freeToPlay=false', self.APIKey)
 
     def get_champion_by_id(self, champion_id):
         """Get Champion by Champion ID"""
@@ -122,7 +120,7 @@ class LeaugeStatics:
 
     def get_all_items_static(self):
         """All Items"""
-        return _send_request('/lol/static-data/v3/items',self.APIKey)
+        return requests.get('http://ddragon.leagueoflegends.com/cdn/6.24.1/data/de_DE/item.json').json()
 
     def get_item_by_id_static(self, item_id):
         """Item by ID"""

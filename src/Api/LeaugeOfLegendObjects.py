@@ -1,12 +1,15 @@
-from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Float
+from sqlalchemy import create_engine, Column, Integer, String, ForeignKey, Float, Numeric
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import sessionmaker, relationship
+from sqlalchemy.orm import sessionmaker, relationship, scoped_session
+
 
 Base = declarative_base()
 
+
 engine = create_engine('sqlite:///data.db', echo=False)
-Session = sessionmaker(bind=engine)
-session = Session()
+session = scoped_session(sessionmaker())
+session.remove()
+session.configure(bind=engine, autoflush=False, expire_on_commit=False)
 
 
 class Summoner(Base):
@@ -14,17 +17,17 @@ class Summoner(Base):
 
     __tablename__ = 'summoners'
 
-    summoner_id = Column(Integer, ForeignKey("Leauge_RANKED_SOLO_5x5.player_or_team_id"),ForeignKey("Leauge_RANKED_FLEX_SR.player_or_team_id"),ForeignKey("Leauge_RANKED_FLEX_TT.player_or_team_id"),ForeignKey("ChampionMastery.player_id"),unique=True,nullable=False)
-    account_id = Column(Integer,ForeignKey("Matches.player_id"), unique=True, primary_key=True)
+    summoner_id = Column(Numeric, unique=True,nullable=False)
+    account_id = Column(Numeric, unique=True, primary_key=True)
     name = Column(String(80), unique=True)
-    profile_icon_id = Column(Integer)
-    revision_date = Column(Integer)
+    profile_icon_id = Column(Numeric)
+    revision_date = Column(Numeric)
     summoner_level = Column(Integer)
-    solo_5v5_leauge = relationship('LeaugeRankedSolo5x5', viewonly=True)
-    flex_5v5_leauge = relationship('LeaugeRankedFlexSR',viewonly=True)
-    tt_3v3_leauge = relationship('LeaugeRankedFlexTT',viewonly=True)
-    champion_masteries = relationship('ChampionMastery',viewonly=True)
-    matches = relationship('Matches',viewonly=True)
+    solo_5v5_leauge = relationship('LeaugeRankedSolo5x5', backref='summoner', lazy='dynamic')
+    flex_5v5_leauge = relationship('LeaugeRankedFlexSR', backref='summoner', lazy='dynamic')
+    tt_3v3_leauge = relationship('LeaugeRankedFlexTT', backref='summoner', lazy='dynamic')
+    champion_masteries = relationship('ChampionMastery', backref='summoner', lazy='dynamic')
+    matches = relationship('Matches', backref='person', lazy='dynamic')
 
     def __init__(self, id, accountId, name, profileIconId, revisionDate, summonerLevel):
         self.summoner_id = id
@@ -89,7 +92,7 @@ class LeaugeRankedSolo5x5(Base):
     tier = Column(String(15))
     queue_type = Column(String(20))
     rank = Column(String(3))
-    player_or_team_id = Column(Integer, primary_key=True)
+    player_or_team_id = Column(Numeric, ForeignKey("summoners.summoner_id"), primary_key=True)
     player_or_team_name = Column(String(80))
     leauge_points = Column(Integer)
     wins = Column(Integer)
@@ -172,7 +175,7 @@ class LeaugeRankedFlexSR(Base):
     tier = Column(String(15))
     queue_type = Column(String(20))
     rank = Column(String(3))
-    player_or_team_id = Column(Integer, primary_key=True)
+    player_or_team_id = Column(Numeric, ForeignKey("summoners.summoner_id"), primary_key=True)
     player_or_team_name = Column(String(80))
     leauge_points = Column(Integer)
     wins = Column(Integer)
@@ -255,7 +258,7 @@ class LeaugeRankedFlexTT(Base):
     tier = Column(String(15))
     queue_type = Column(String(20))
     rank = Column(String(3))
-    player_or_team_id = Column(Integer, primary_key=True)
+    player_or_team_id = Column(Numeric, ForeignKey("summoners.summoner_id"), primary_key=True)
     player_or_team_name = Column(String(80))
     leauge_points = Column(Integer)
     wins = Column(Integer)
@@ -332,16 +335,16 @@ class LeaugeRankedFlexTT(Base):
 class ChampionMastery(Base):
 
     __tablename__ = 'ChampionMastery'
-    id = Column(Integer, primary_key=True)
+    id = Column(Numeric, primary_key=True)
     chest_granted = Column(String)
     champion_level = Column(Integer)
-    champion_points = Column(Integer)
-    champion_id = Column(Integer)
-    player_id = Column(Integer)
-    champion_points_until_next_level = Column(Integer)
+    champion_points = Column(Numeric)
+    champion_id = Column(Numeric)
+    player_id = Column(Numeric, ForeignKey("summoners.summoner_id"))
+    champion_points_until_next_level = Column(Numeric)
     tokens_earned = Column(Integer)
-    champion_points_since_last_level = Column(Integer)
-    last_play_time = Column(Integer)
+    champion_points_since_last_level = Column(Numeric)
+    last_play_time = Column(Numeric)
 
     def __init__(self, chestGranted, championLevel, championPoints, championId, playerId, championPointsUntilNextLevel, tokensEarned, championPointsSinceLastLevel, lastPlayTime):
         self.chest_granted = chestGranted
@@ -404,16 +407,16 @@ class ChampionMastery(Base):
 class Matches(Base):
     """playerId or player_id = Summoner.account_id """
     __tablename__ = 'Matches'
-    id = Column(Integer, primary_key=True)
+    id = Column(Numeric, primary_key=True)
     platform_id = Column(String)
-    game_id = Column(Integer)
-    champion = Column(Integer)
+    game_id = Column(Numeric)
+    champion = Column(Numeric)
     queue = Column(Integer)
     season = Column(Integer)
-    timestamp = Column(Integer)
+    timestamp = Column(Numeric)
     role = Column(String)
     lane = Column(String)
-    player_id = Column(Integer)
+    player_id = Column(Numeric, ForeignKey("summoners.account_id"))
 
     def __init__(self, platformId, gameId, champion, queue, season, timestamp, role, lane, playerId):
         self.platform_id = platformId
@@ -474,7 +477,7 @@ class Matches(Base):
 class Champions(Base):
     __tablename__ = 'Champions'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Numeric, primary_key=True)
     key = Column(String)
     name = Column(String)
     title = Column(String)
@@ -525,8 +528,8 @@ class CsDiffPerMinDeltas(Base):
 
     __tablename__ = "CsDiffPerMinDeltas"
 
-    id = Column(Integer, primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey('Timeline.id'), primary_key=True)
+    game_id = Column(Numeric)
     participant_id = Column(Integer)
     null_zehn = Column(Float)
     zehn_zwanzig = Column(Float)
@@ -599,8 +602,8 @@ class GoldPerMinDeltas(Base):
 
     __tablename__ = "GoldPerMinDeltas"
 
-    id = Column(Integer, primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey('Timeline.id'), primary_key=True)
+    game_id = Column(Numeric)
     participant_id = Column(Integer)
     null_zehn = Column(Float)
     zehn_zwanzig = Column(Float)
@@ -673,8 +676,8 @@ class XpDiffPerMinDeltas(Base):
 
     __tablename__ = "XpDiffPerMinDeltas"
 
-    id = Column(Integer, primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey('Timeline.id'), primary_key=True)
+    game_id = Column(Numeric)
     participant_id = Column(Integer)
     null_zehn = Column(Float)
     zehn_zwanzig = Column(Float)
@@ -748,8 +751,8 @@ class CreepsPerMinDeltas(Base):
 
     __tablename__ = "CreepsPerMinDeltas"
 
-    id = Column(Integer, primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey('Timeline.id'), primary_key=True)
+    game_id = Column(Numeric)
     participant_id = Column(Integer)
     null_zehn = Column(Float)
     zehn_zwanzig = Column(Float)
@@ -822,8 +825,8 @@ class XpPerMinDeltas(Base):
 
     __tablename__ = "XpPerMinDeltas"
 
-    id = Column(Integer, primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey('Timeline.id'), primary_key=True)
+    game_id = Column(Numeric)
     participant_id = Column(Integer)
     null_zehn = Column(Float)
     zehn_zwanzig = Column(Float)
@@ -896,8 +899,8 @@ class DamageTakenDiffPerMinDeltas(Base):
 
     __tablename__ = "DamageTakenDiffPerMinDeltas"
 
-    id = Column(Integer, primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey('Timeline.id'), primary_key=True)
+    game_id = Column(Numeric)
     participant_id = Column(Integer)
     null_zehn = Column(Float)
     zehn_zwanzig = Column(Float)
@@ -970,8 +973,8 @@ class DamageTakenPerMinDeltas(Base):
 
     __tablename__ = "DamageTakenPerMinDeltas"
 
-    id = Column(Integer, primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey('Timeline.id'), primary_key=True)
+    game_id = Column(Numeric)
     participant_id = Column(Integer)
     null_zehn = Column(Float)
     zehn_zwanzig = Column(Float)
@@ -1043,18 +1046,18 @@ class Timeline(Base):
 
     __tablename__ = "Timeline"
 
-    id = Column(Integer,ForeignKey('CsDiffPerMinDeltas.id'),ForeignKey('GoldPerMinDeltas.id'),ForeignKey('XpDiffPerMinDeltas.id'),ForeignKey('CreepsPerMinDeltas.id'),ForeignKey('XpPerMinDeltas.id'),ForeignKey('DamageTakenDiffPerMinDeltas.id'),ForeignKey('DamageTakenPerMinDeltas.id'), primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey("ParticipantIdentities.key_for_stats"), ForeignKey('Participants.id'), primary_key=True)
+    game_id = Column(Numeric)
     lane = Column(String)
     participant_id = Column(Integer)
     role = Column(String)
-    cs_diff_per_min_deltas = relationship('CsDiffPerMinDeltas', viewonly=True)
-    gold_per_min_deltas = relationship('GoldPerMinDeltas', viewonly=True)
-    xp_diff_per_min_deltas = relationship('XpDiffPerMinDeltas', viewonly=True)
-    creeps_per_min_deltas = relationship('CreepsPerMinDeltas', viewonly=True)
-    xp_per_min_deltas = relationship('XpPerMinDeltas', viewonly=True)
-    damage_taken_diff_per_min_deltas = relationship('DamageTakenDiffPerMinDeltas',viewonly=True)
-    damage_taken_per_min_deltas = relationship('DamageTakenPerMinDeltas', viewonly=True)
+    cs_diff_per_min_deltas = relationship('CsDiffPerMinDeltas', backref='timeline', lazy='dynamic')
+    gold_per_min_deltas = relationship('GoldPerMinDeltas', backref='timeline', lazy='dynamic')
+    xp_diff_per_min_deltas = relationship('XpDiffPerMinDeltas', backref='timeline', lazy='dynamic')
+    creeps_per_min_deltas = relationship('CreepsPerMinDeltas', backref='timeline', lazy='dynamic')
+    xp_per_min_deltas = relationship('XpPerMinDeltas', backref='timeline', lazy='dynamic')
+    damage_taken_diff_per_min_deltas = relationship('DamageTakenDiffPerMinDeltas', backref='timeline', lazy='dynamic')
+    damage_taken_per_min_deltas = relationship('DamageTakenPerMinDeltas', backref='timeline', lazy='dynamic')
 
     def __init__(self, gameId, lane, participantId, role):
         self.id = int(str(gameId)+str(participantId))
@@ -1103,17 +1106,17 @@ class ParticipantIdentities(Base):
     summoner_name = Column(String(20))
     match_history_uri = Column(String)
     platform_id = Column(String)
-    current_account_id = Column(Integer)
-    profile_icon_id = Column(Integer)
-    summoner_id = Column(Integer)
-    account_id = Column(Integer)
+    current_account_id = Column(Numeric)
+    profile_icon_id = Column(Numeric)
+    summoner_id = Column(Numeric)
+    account_id = Column(Numeric)
     participant_id = Column(Integer)
-    game_id = Column(Integer)
-    id = Column(Integer, primary_key=True, unique=True)
-    key_for_stats = Column(Integer, ForeignKey("Stats.id"), ForeignKey("Timeline.id"), ForeignKey("Participants.id"))
-    stats = relationship("Stats", viewonly=True)
-    timeline = relationship("Timeline", viewonly=True)
-    participants = relationship("Participants", viewonly=True)
+    game_id = Column(Numeric, ForeignKey("BigMatch.game_id"))
+    id = Column(Numeric, primary_key=True, unique=True)
+    key_for_stats = Column(Numeric, unique=True)
+    stats = relationship("Stats", backref='participantIdentities', lazy='dynamic')
+    timeline = relationship("Timeline", backref='participantIdentities', lazy='dynamic')
+    participants = relationship("Participants", backref='participantIdentities', lazy='dynamic')
 
     def __init__(self, currentPlatformId, summonerName, matchHistoryUri, platformId, currentAccountId, profileIcon, summonerId, accountId, participantId, gameId):
         self.current_platform_id = currentPlatformId
@@ -1156,6 +1159,10 @@ class ParticipantIdentities(Base):
         """return all Participantidentities from the Database"""
         return session.query(cls).all()
 
+    @classmethod
+    def get_all_with_limit(cls, limit):
+        return session.query(cls).limit(limit).all()
+
     def insert_to_db(self):
         session.add(self)
         session.commit()
@@ -1172,16 +1179,16 @@ class BigMatch(Base):
     __tablename__ = "BigMatch"
     season_id = Column(String)
     queue_id = Column(Integer)
-    game_id = Column(Integer, ForeignKey("ParticipantIdentities.game_id"),ForeignKey("Team.game_id"), primary_key=True, unique=True)
+    game_id = Column(Numeric, primary_key=True, unique=True)
     game_version = Column(String)
     platform_id = Column(String)
     game_mode = Column(String)
     map_id = Column(Integer)
     game_type = Column(String)
-    game_duration = Column(Integer)
-    game_creation = Column(Integer)
-    player = relationship('ParticipantIdentities', viewonly=True)
-    teams = relationship('Team', viewonly=True)
+    game_duration = Column(Numeric)
+    game_creation = Column(Numeric)
+    player = relationship('ParticipantIdentities', backref='bigmatch', lazy='dynamic')
+    teams = relationship('Team', backref='summoner', lazy='dynamic')
 
     def __init__(self, seasonId, queueId, gameId, gameVersion, platformId, gameMode, mapId, gameType, gameDuration, gameCreation):
         self.season_id = seasonId
@@ -1225,6 +1232,10 @@ class BigMatch(Base):
     def get_all(cls):
         """return all BigMatches from the Database"""
         return session.query(cls).all()
+
+    @classmethod
+    def get_all_analysis(cls):
+        return session.query(cls).filter(cls.game_id > 3409174988).all()
     
     def insert_to_db(self):
         session.add(self)
@@ -1256,9 +1267,10 @@ class Team(Base):
     tower_kills = Column(Integer)
     dominion_victory_score = Column(Integer)
     dragon_kills = Column(Integer)
-    id = Column(Integer, ForeignKey("Bans.id"), primary_key=True, unique=True)
-    game_id = Column(Integer)
-    bans = relationship('Bans', viewonly=True)
+    id = Column(Numeric, primary_key=True, unique=True)
+    game_id = Column(Numeric, ForeignKey("BigMatch.game_id"))
+    bans = relationship('Bans', backref='team', lazy='dynamic')
+    participants = relationship('Participants', backref='team', lazy='dynamic')
 
     def __init__(self, firstDragon, firstInhibitor, win, firstRiftHerald, firstBaron, baronKills, riftHeraldKills, firstBlood, teamId, firstTower, vilemawKills, inhibitorKills, towerKills, dominionVictoryScore, dragonKills, gameId):
         self.first_dragon = firstDragon
@@ -1304,12 +1316,16 @@ class Team(Base):
     @classmethod
     def find_by_ids(cls, game_id, team_id):
         """ game_id team_id """
-        return session.query(cls).filter_by(id = int(str(game_id)+str(team_id))).first()
+        return session.query(cls).filter_by(id=int(str(game_id)+str(team_id))).first()
 
     @classmethod
     def get_all(cls):
         """return an generator of all Teams"""
         return session.query(cls).all()
+
+    @classmethod
+    def get_all_wins(cls):
+        return session.query(cls).filter_by(win='Win').all()
 
     def insert_to_db(self):
         session.add(self)
@@ -1327,9 +1343,9 @@ class Bans(Base):
 
     __tablename__  = "Bans"
 
-    game_id = Column(Integer)
+    game_id = Column(Numeric)
     team_id = Column(Integer)
-    id = Column(Integer, primary_key=True)
+    id = Column(Numeric, ForeignKey("Team.id"), primary_key=True)
     champion_id1 = Column(Integer)
     champion_id2 = Column(Integer)
     champion_id3 = Column(Integer)
@@ -1384,7 +1400,7 @@ class Stats(Base):
     
     __tablename__ = "Stats"
     
-    id = Column(Integer, primary_key=True)
+    id = Column(Numeric, ForeignKey("ParticipantIdentities.key_for_stats"), ForeignKey('Participants.id'), primary_key=True)
     player_score0 = Column(Integer)
     player_score1 = Column(Integer)
     player_score2 = Column(Integer)
@@ -1728,20 +1744,22 @@ class Stats(Base):
 class Participants(Base):
     __tablename__ = "Participants"
 
-    id = Column(Integer, ForeignKey('Stats.id'),ForeignKey('Timeline.id'), primary_key=True)
-    game_id = Column(Integer)
+    id = Column(Numeric, ForeignKey("ParticipantIdentities.key_for_stats"), primary_key=True, unique=True)
+    id_to_team = Column(Numeric, ForeignKey("Team.id"))
+    game_id = Column(Numeric)
     participant_id = Column(Integer)
     spell1_id = Column(Integer)
     spell2_id = Column(Integer)
     highest_achiecved_season_tier = Column(String)
     team_id = Column(Integer)
     champion_id = Column(Integer)
-    stats = relationship('Stats', viewonly=True)
-    timeline = relationship('Timeline', viewonly=True)
+    stats = relationship('Stats', backref='participants', lazy='dynamic')
+    timeline = relationship('Timeline', backref='participants', lazy='dynamic')
 
     def __init__(self, gameId, spell1Id, participantId, highestAchievedSeasonTier, spell2Id, teamId, championId):        
-        self.id = int(str(gameId)+ str(participantId))
+        self.id = int(str(gameId)+str(participantId))
         self.game_id = gameId
+        self.id_to_team = int(str(gameId)+str(teamId))
         self.spell1_id = spell1Id
         self.participant_id = participantId
         self.highest_achiecved_season_tier = highestAchievedSeasonTier
@@ -1772,6 +1790,14 @@ class Participants(Base):
         """return all Participants from the Database"""
         return session.query(cls).all()
 
+    @classmethod
+    def get_all_by_id(cls, game_id, team_id):
+        return session.query(cls).filter_by(game_id=game_id).filter_by(team_id=team_id).all()
+
+    @classmethod
+    def get_all_by_champion_id(cls, champion_id):
+        return session.query(cls).filter_by(champion_id=champion_id).all()
+
     def insert_to_db(self):
         session.add(self)
         session.commit()
@@ -1788,7 +1814,7 @@ class Item(Base):
 
     __tablename__ = 'items'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Numeric, primary_key=True)
     name = Column(String)
     plaintext = Column(String)
     description = Column(String)
