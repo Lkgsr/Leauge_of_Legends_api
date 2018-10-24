@@ -2,7 +2,7 @@ from leauge_of_legends_api import Summoner, LeaugeOfLegendLeauger, ChampionMaste
     Item, Champion, ParticipantIdentities
 from datetime import datetime
 
-
+header = ["APIKey", "APIKey"]
 
 
 def update_data_base(update_masterys=True, update_leauger=True, update_matches=True):
